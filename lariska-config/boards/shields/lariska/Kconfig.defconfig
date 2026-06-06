@@ -1,0 +1,6 @@
+if SHIELD_LARISKA
+
+config ZMK_KEYBOARD_NAME
+    default "Lariska"
+
+endif

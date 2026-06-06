@@ -1,0 +1,40 @@
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.h>
+#include <dt-bindings/zmk/bt.h>
+#include <dt-bindings/zmk/pointing.h>
+
+/* Fire the msc tick at 4ms — before the 5ms sensor-rotate tap window closes.
+ * 250 * 4ms/1000 = 1.0: exactly one scroll unit per encoder detent. */
+&msc {
+    trigger-period-ms = <4>;
+};
+
+/ {
+    behaviors {
+        scroll: scroll {
+            compatible = "zmk,behavior-sensor-rotate";
+            #sensor-binding-cells = <0>;
+            bindings = <&msc MOVE_Y(-250)>, <&msc MOVE_Y(250)>;
+        };
+    };
+
+    mou0_mmv_il {
+        compatible = "zmk,input-listener";
+        device = <&mou0>;
+    };
+
+    keymap {
+        compatible = "zmk,keymap";
+
+        default_layer {
+            bindings = <
+                &mkp LCLK
+                &mkp RCLK
+                &mkp MCLK
+                &mkp MB4
+                &mkp MB5
+            >;
+            sensor-bindings = <&scroll>;
+        };
+    };
+};

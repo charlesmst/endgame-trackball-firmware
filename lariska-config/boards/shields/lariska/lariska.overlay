@@ -1,0 +1,114 @@
+#include <dt-bindings/zmk/matrix_transform.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/* Free P0.15 from the nice_nano blue LED — lariska PCB repurposes that pin */
+/ {
+    /delete-node/ leds;
+};
+
+/ {
+    chosen {
+        zmk,battery = &vbatt;
+        zmk,kscan = &kscan0;
+        zmk,matrix-transform = &default_transform;
+    };
+
+    vbatt: vbatt {
+        compatible = "zmk,battery-voltage-divider";
+        io-channels = <&adc 7>;
+        output-ohms = <400000>;
+        full-ohms = <(1000000 + 400000)>;
+    };
+
+    default_transform: keymap_transform0 {
+        compatible = "zmk,matrix-transform";
+        columns = <5>;
+        rows = <1>;
+        map = <
+            RC(0,0) RC(0,1) RC(0,2) RC(0,3) RC(0,4)
+        >;
+    };
+
+    kscan0: kscan {
+        compatible = "zmk,kscan-gpio-direct";
+        wakeup-source;
+        input-gpios
+            = <&gpio0 30 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>
+            , <&gpio0 29 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>
+            , <&gpio0 28 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>
+            , <&gpio0  2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>
+            , <&gpio0  3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>
+            ;
+    };
+
+    sensors: sensors {
+        compatible = "zmk,keymap-sensors";
+        sensors = <&encoder>;
+        triggers-per-rotation = <24>;
+    };
+
+
+};
+
+&pinctrl {
+    qdec_default: qdec_default {
+        group1 {
+            psels = <NRF_PSEL(QDEC_A, 0, 1)>,
+                    <NRF_PSEL(QDEC_B, 0, 0)>;
+        };
+    };
+    qdec_sleep: qdec_sleep {
+        group1 {
+            psels = <NRF_PSEL(QDEC_A, 0, 1)>,
+                    <NRF_PSEL(QDEC_B, 0, 0)>;
+            low-power-enable;
+        };
+    };
+    spi2_default: spi2_default {
+        group1 {
+            psels = <NRF_PSEL(SPIM_SCK,  0, 6)>,
+                    <NRF_PSEL(SPIM_MOSI, 0, 5)>,
+                    <NRF_PSEL(SPIM_MISO, 0, 4)>;
+        };
+    };
+    spi2_sleep: spi2_sleep {
+        group1 {
+            psels = <NRF_PSEL(SPIM_SCK,  0, 6)>,
+                    <NRF_PSEL(SPIM_MOSI, 0, 5)>,
+                    <NRF_PSEL(SPIM_MISO, 0, 4)>;
+            low-power-enable;
+        };
+    };
+};
+
+encoder: &qdec0 {
+    status = "okay";
+    led-pre = <0>;
+    steps = <48>;
+    pinctrl-0 = <&qdec_default>;
+    pinctrl-1 = <&qdec_sleep>;
+    pinctrl-names = "default", "sleep";
+};
+
+&spi2 {
+    compatible = "nordic,nrf-spim";
+    status = "okay";
+    pinctrl-0 = <&spi2_default>;
+    pinctrl-1 = <&spi2_sleep>;
+    pinctrl-names = "default", "sleep";
+    cs-gpios = <&gpio0 27 GPIO_ACTIVE_LOW>;
+
+    mou0: pd@0 {
+        compatible = "pixart,paw3395";
+        status = "okay";
+        label = "MOU0";
+        reg = <0>;
+        spi-max-frequency = <4000000>;
+        irq-gpios = <&gpio0 7 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+        cpi = <1600>;
+        invert-x;
+        evt-type = <INPUT_EV_REL>;
+        x-input-code = <INPUT_REL_X>;
+        y-input-code = <INPUT_REL_Y>;
+    };
+};

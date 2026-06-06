@@ -1,0 +1,7 @@
+file_format: "1"
+id: lariska
+name: Lariska
+type: shield
+features:
+  - keys
+  - pointer
