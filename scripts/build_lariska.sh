@@ -2,7 +2,8 @@
 cd "$(dirname "$0")/../zmk" || exit 1
 
 CHARLESMST_PAW="$(pwd)/../../zmk-config-roBa-charybdis-esb/zmk-paw3395-driver"
-MODULES="${CHARLESMST_PAW};$(pwd)/../lariska-config;$(pwd)/../zmk-esb-endpoint"
+VFX_LED="$(pwd)/../../zmk-config-roBa-charybdis-esb/zmk-vfx-rgbled-indicator"
+MODULES="${CHARLESMST_PAW};${VFX_LED};$(pwd)/../lariska-config;$(pwd)/../zmk-esb-endpoint"
 
 west build --pristine always -s app -b nice_nano_v2 -- \
     -DSHIELD=lariska \
