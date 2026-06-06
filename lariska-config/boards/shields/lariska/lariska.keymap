@@ -4,7 +4,7 @@
 #include <dt-bindings/zmk/pointing.h>
 
 /* Fire the msc tick at 4ms — before the 5ms sensor-rotate tap window closes.
- * 250 * 4ms/1000 = 1.0: exactly one scroll unit per encoder detent. */
+ * 4000 * 4ms/1000 = 16: one scroll step per detent (dongle resolution multiplier = 15). */
 &msc {
     trigger-period-ms = <4>;
 };
@@ -14,10 +14,32 @@
 
 / {
     behaviors {
+        /* Zero-param wrappers so hold-tap can bind them with #binding-cells = <2>. */
+        bt_nxt: bt_nxt {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&bt BT_NXT>;
+        };
+
+        bt_clr: bt_clr {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&bt BT_CLR>;
+        };
+
+        /* Tap: cycle to next BLE profile.  Hold 3s: clear bonds on current profile. */
+        dpi_btn: dpi_btn {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <3000>;
+            flavor = "tap-preferred";
+            bindings = <&bt_clr>, <&bt_nxt>;
+        };
+
         scroll: scroll {
             compatible = "zmk,behavior-sensor-rotate";
             #sensor-binding-cells = <0>;
-            bindings = <&msc MOVE_Y(-250)>, <&msc MOVE_Y(250)>;
+            bindings = <&msc MOVE_Y(-4000)>, <&msc MOVE_Y(4000)>;
         };
     };
 
@@ -37,7 +59,7 @@
                 &mkp MCLK
                 &mkp MB4
                 &mkp MB5
-                &bt BT_NXT
+                &dpi_btn 0 0
             >;
             sensor-bindings = <&scroll>;
         };
