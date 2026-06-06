@@ -153,6 +153,7 @@
 
 encoder: &qdec0 {
     status = "okay";
+    wakeup-source;
     led-pre = <0>;
     steps = <48>;
     pinctrl-0 = <&qdec_default>;
@@ -180,5 +181,6 @@ encoder: &qdec0 {
         evt-type = <INPUT_EV_REL>;
         x-input-code = <INPUT_REL_X>;
         y-input-code = <INPUT_REL_Y>;
+        wakeup-source;
     };
 };
