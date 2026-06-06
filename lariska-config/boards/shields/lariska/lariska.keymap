@@ -34,6 +34,7 @@
                 &mkp MCLK
                 &mkp MB4
                 &mkp MB5
+                &bt BT_NXT
             >;
             sensor-bindings = <&scroll>;
         };
