@@ -119,19 +119,9 @@ static const uint8_t hid_desc[] = {
             HID_REPORT_SIZE(16),
             HID_REPORT_COUNT(2),
             HID_INPUT(0x06),    /* Data, Var, Rel */
-            /* Wheel Y, inside LOGICAL collection with Resolution Multiplier feature
-             * (low nibble of the 1-byte feature report). Mirrors
-             * zmk/app/include/zmk/hid.h:216–236. */
+            /* Wheel Y — no resolution multiplier; 1 raw unit = 1 scroll notch,
+             * matching ZMK USB/BLE (CONFIG_ZMK_POINTING_SMOOTH_SCROLLING=n). */
             HID_COLLECTION(HID_COLLECTION_LOGICAL),
-                HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
-                HID_LOGICAL_MIN8(0x00),
-                HID_LOGICAL_MAX8(0x0F),
-                HID_PHYSICAL_MIN8(0x01),
-                HID_PHYSICAL_MAX8(0x10),
-                HID_REPORT_SIZE(0x04),
-                HID_REPORT_COUNT(0x01),
-                HID_PUSH,
-                HID_FEATURE(0x02),  /* Data, Var, Abs */
                 HID_USAGE(HID_USAGE_GEN_DESKTOP_WHEEL),
                 HID_LOGICAL_MIN16(0x01, 0x80),
                 HID_LOGICAL_MAX16(0xFF, 0x7F),
@@ -141,12 +131,8 @@ static const uint8_t hid_desc[] = {
                 HID_REPORT_COUNT(1),
                 HID_INPUT(0x06),    /* Data, Var, Rel */
             HID_END_COLLECTION,
-            /* AC Pan, inside LOGICAL collection; POP restores the 4-bit feature
-             * state so the high nibble of the same feature byte is emitted. */
+            /* AC Pan */
             HID_COLLECTION(HID_COLLECTION_LOGICAL),
-                HID_USAGE(HID_USAGE_GD_RESOLUTION_MULTIPLIER),
-                HID_POP,
-                HID_FEATURE(0x02),  /* Data, Var, Abs */
                 HID_USAGE_PAGE(HID_USAGE_GEN_CONSUMER),
                 0x0A, 0x38, 0x02,   /* Usage AC Pan (16-bit, consumer page) */
                 HID_LOGICAL_MIN16(0x01, 0x80),
@@ -178,14 +164,6 @@ static uint8_t tx_tail;
 static bool ep_busy;
 static struct k_spinlock tx_lock;
 
-/* Resolution-multiplier feature report: [report_id, body] where
- * body = wheel_res:4 | hwheel_res:4. Default body = 0xFF ⇒ both nibbles = 15
- * Multiplier = 15 (both nibbles = 0xF): device sends 16 units per scroll notch;
- * host divides by 16 to produce one WM_MOUSEWHEEL tick. Matches the lariska
- * peripheral (MOVE_Y(4000) → 16 raw units per encoder detent).
- * keep it here so GET reflects the most recent SET. The report_id prefix is
- * required per HID 1.11 §7.2.1 because this device has multiple report IDs. */
-static uint8_t res_feature_report[2] = { REPORT_ID_MOUSE, 0xFF };
 
 static int submit_locked(const uint8_t report_id, const uint8_t *data, const uint8_t len) {
     uint8_t buf[1 + sizeof(((struct pending_report *)0)->data)];
@@ -218,44 +196,7 @@ static void int_in_ready_cb(const struct device *dev) {
     (void)submit_locked(r.report_id, r.data, r.len);
 }
 
-static int get_report_cb(const struct device *dev, struct usb_setup_packet *setup,
-                         int32_t *len, uint8_t **data) {
-    ARG_UNUSED(dev);
-    if ((setup->wValue & HID_GET_REPORT_TYPE_MASK) != HID_REPORT_TYPE_FEATURE) {
-        return -ENOTSUP;
-    }
-    if ((setup->wValue & HID_GET_REPORT_ID_MASK) != REPORT_ID_MOUSE) {
-        return -ENOTSUP;
-    }
-    *data = res_feature_report;
-    *len  = sizeof(res_feature_report);
-    return 0;
-}
-
-static int set_report_cb(const struct device *dev, struct usb_setup_packet *setup,
-                         int32_t *len, uint8_t **data) {
-    ARG_UNUSED(dev);
-    if ((setup->wValue & HID_GET_REPORT_TYPE_MASK) != HID_REPORT_TYPE_FEATURE) {
-        return -ENOTSUP;
-    }
-    if ((setup->wValue & HID_GET_REPORT_ID_MASK) != REPORT_ID_MOUSE) {
-        return -ENOTSUP;
-    }
-    /* Host may or may not include the report_id prefix. Accept either. */
-    if (*len == sizeof(res_feature_report) && (*data)[0] == REPORT_ID_MOUSE) {
-        res_feature_report[1] = (*data)[1];
-    } else if (*len == 1) {
-        res_feature_report[1] = (*data)[0];
-    } else {
-        return -EINVAL;
-    }
-    LOG_INF("SET_REPORT feature mouse res-mult=0x%02X", res_feature_report[1]);
-    return 0;
-}
-
 static const struct hid_ops ops = {
-    .get_report   = get_report_cb,
-    .set_report   = set_report_cb,
     .int_in_ready = int_in_ready_cb,
 };
 
