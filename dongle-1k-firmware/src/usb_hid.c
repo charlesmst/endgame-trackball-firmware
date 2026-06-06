@@ -180,12 +180,11 @@ static struct k_spinlock tx_lock;
 
 /* Resolution-multiplier feature report: [report_id, body] where
  * body = wheel_res:4 | hwheel_res:4. Default body = 0xFF ⇒ both nibbles = 15
- * ⇒ 16× subdivision, matching the keyboard's CONFIG_ZMK_POINTING_SMOOTH_SCROLLING
- * default in zmk/app/src/pointing/resolution_multipliers.c. The keyboard runs
- * at a fixed multiplier=15 and is unaware of the dongle's stored value; we only
+ * Multiplier = 0 (both nibbles): host treats each scroll unit as one full step,
+ * matching the lariska peripheral which sends raw units with no pre-scaling.
  * keep it here so GET reflects the most recent SET. The report_id prefix is
  * required per HID 1.11 §7.2.1 because this device has multiple report IDs. */
-static uint8_t res_feature_report[2] = { REPORT_ID_MOUSE, 0xFF };
+static uint8_t res_feature_report[2] = { REPORT_ID_MOUSE, 0x00 };
 
 static int submit_locked(const uint8_t report_id, const uint8_t *data, const uint8_t len) {
     uint8_t buf[1 + sizeof(((struct pending_report *)0)->data)];

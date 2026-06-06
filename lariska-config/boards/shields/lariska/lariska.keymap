@@ -39,7 +39,7 @@
         scroll: scroll {
             compatible = "zmk,behavior-sensor-rotate";
             #sensor-binding-cells = <0>;
-            bindings = <&msc MOVE_Y(-4000)>, <&msc MOVE_Y(4000)>;
+            bindings = <&msc MOVE_Y(-250)>, <&msc MOVE_Y(250)>;
         };
     };
 
