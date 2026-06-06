@@ -9,6 +9,9 @@
     trigger-period-ms = <4>;
 };
 
+&mkp_input_listener { input-processors = <&esb_ip>; };
+&msc_input_listener { input-processors = <&esb_ip>; };
+
 / {
     behaviors {
         scroll: scroll {
