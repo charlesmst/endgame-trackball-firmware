@@ -21,6 +21,7 @@
     mou0_mmv_il {
         compatible = "zmk,input-listener";
         device = <&mou0>;
+        input-processors = <&esb_ip>;
     };
 
     keymap {

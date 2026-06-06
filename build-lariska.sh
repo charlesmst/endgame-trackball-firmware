@@ -3,7 +3,7 @@ set -e
 
 BASE="$(cd "$(dirname "$0")" && pwd)"
 CHARLESMST_PAW="/home/charlesstein/personal/zmk-config-roBa-charybdis-esb/zmk-paw3395-driver"
-MODULES="${CHARLESMST_PAW};${BASE}/lariska-config"
+MODULES="${CHARLESMST_PAW};${BASE}/lariska-config;${BASE}/zmk-esb-endpoint"
 
 cd "${BASE}/zmk"
 west build --pristine always -s app -b nice_nano_v2 -- \
