@@ -5,8 +5,18 @@
  *
  * The ESB slot runs on the last BLE profile (ZMK_BLE_PROFILE_COUNT - 1),
  * same index the zmk-esb-endpoint module uses to activate ESB PTX mode.
- * Because ESB is unidirectional RF and the dongle polls at 1000 Hz, running
- * the sensor at 1000 Hz there matches USB latency.
+ *
+ * Why two subscriptions instead of just zmk_endpoint_changed:
+ *   zmk_endpoint_changed is raised by update_current_endpoint() only when
+ *   current_instance changes. At boot, current_instance is initialised from
+ *   get_selected_instance() *before* NVS settings are loaded, so it lands on
+ *   BLE profile 0. Settings then restore the true profile (e.g. ESB = N-1)
+ *   without raising zmk_ble_active_profile_changed (ZMK does not emit it for
+ *   the settings-restore path). Consequently current_instance stays stale at
+ *   profile 0, and a later switch FROM ESB TO profile 0 looks like no change
+ *   to update_current_endpoint(), so zmk_endpoint_changed never fires.
+ *   Subscribing directly to zmk_ble_active_profile_changed and reading
+ *   zmk_ble_active_profile_index() sidesteps the stale-cache entirely.
  */
 
 #include <zephyr/kernel.h>
@@ -14,6 +24,7 @@
 #include <zephyr/drivers/sensor.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/endpoint_changed.h>
+#include <zmk/events/ble_active_profile_changed.h>
 #include <zmk/endpoints.h>
 #include <zmk/ble.h>
 #include <paw3395.h>
@@ -25,17 +36,17 @@ LOG_MODULE_REGISTER(lariska_rate, CONFIG_ZMK_LOG_LEVEL);
 #define RATE_ESB_MS  1   /* 1000 Hz — dongle polls at 1 kHz */
 #define RATE_BLE_MS  8   /* ~125 Hz — fits BLE 7.5 ms min conn interval */
 
-static void set_rate(struct zmk_endpoint_instance ep) {
+static void apply_rate(void) {
     const struct device *sensor = DEVICE_DT_GET(DT_NODELABEL(mou0));
     if (!device_is_ready(sensor)) {
         return;
     }
 
     int32_t interval_ms;
+    struct zmk_endpoint_instance ep = zmk_endpoints_selected();
     if (ep.transport == ZMK_TRANSPORT_USB) {
         interval_ms = RATE_USB_MS;
-    } else if (ep.transport == ZMK_TRANSPORT_BLE &&
-               ep.ble.profile_index == ZMK_BLE_PROFILE_COUNT - 1) {
+    } else if (zmk_ble_active_profile_index() == ZMK_BLE_PROFILE_COUNT - 1) {
         interval_ms = RATE_ESB_MS;
     } else {
         interval_ms = RATE_BLE_MS;
@@ -51,25 +62,31 @@ static void set_rate(struct zmk_endpoint_instance ep) {
     }
 }
 
-static int endpoint_rate_cb(const zmk_event_t *eh) {
-    const struct zmk_endpoint_changed *ev = as_zmk_endpoint_changed(eh);
-    if (ev) {
-        set_rate(ev->endpoint);
-    }
+static int rate_event_cb(const zmk_event_t *eh) {
+    apply_rate();
     return ZMK_EV_EVENT_BUBBLE;
 }
 
-ZMK_LISTENER(lariska_rate_listener, endpoint_rate_cb);
-ZMK_SUBSCRIPTION(lariska_rate_listener, zmk_endpoint_changed);
+/* USB transport changes */
+ZMK_LISTENER(lariska_rate_ep_listener, rate_event_cb);
+ZMK_SUBSCRIPTION(lariska_rate_ep_listener, zmk_endpoint_changed);
 
-/* zmk_endpoint_changed is not raised at boot; poll once after ZMK settles. */
-static void boot_check_fn(struct k_work *work) {
-    set_rate(zmk_endpoints_selected());
+/* BLE profile switches — including switching away from / back to the ESB slot */
+ZMK_LISTENER(lariska_rate_ble_listener, rate_event_cb);
+ZMK_SUBSCRIPTION(lariska_rate_ble_listener, zmk_ble_active_profile_changed);
+
+/*
+ * At boot, neither event fires for the settings-restored profile.
+ * Run apply_rate() after the sensor and NVS have settled so the correct
+ * rate is set without requiring a profile cycle.
+ */
+static void boot_rate_fn(struct k_work *work) {
+    apply_rate();
 }
-static K_WORK_DELAYABLE_DEFINE(boot_check_work, boot_check_fn);
+static K_WORK_DELAYABLE_DEFINE(boot_rate_work, boot_rate_fn);
 
 static int lariska_rate_init(void) {
-    k_work_schedule(&boot_check_work, K_MSEC(2000));
+    k_work_schedule(&boot_rate_work, K_MSEC(2000));
     return 0;
 }
 
