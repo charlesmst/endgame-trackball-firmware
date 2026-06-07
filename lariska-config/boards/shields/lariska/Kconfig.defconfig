@@ -3,4 +3,14 @@ if SHIELD_LARISKA
 config ZMK_KEYBOARD_NAME
     default "Lariska"
 
+config LARISKA_BLE_LED
+    bool "Lariska BLE status LED"
+    default y
+    depends on ZMK_BLE
+    select PWM
+    help
+      Drives the on-board blue LED to show BLE connection state:
+      slow blink when disconnected, fast blink in pairing mode,
+      double-blink when switching to BLE profile 3 (ESB slot).
+
 endif
