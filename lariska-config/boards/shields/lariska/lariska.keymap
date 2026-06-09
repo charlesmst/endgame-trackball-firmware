@@ -1,16 +1,10 @@
 #include <behaviors.dtsi>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/pointing.h>
 
-/* Fire the msc tick at 4ms — before the 5ms sensor-rotate tap window closes.
- * 4000 * 4ms/1000 = 16: one scroll step per detent (dongle resolution multiplier = 15). */
-&msc {
-    trigger-period-ms = <4>;
-};
-
 &mkp_input_listener { input-processors = <&esb_ip>; };
-&msc_input_listener { input-processors = <&esb_ip>; };
 
 / {
     behaviors {
@@ -36,16 +30,28 @@
             bindings = <&bt_clr>, <&bt_nxt>;
         };
 
+        stepped_scroll: stepped_scroll {
+            compatible = "zmk,behavior-stepped-scroll";
+            #binding-cells = <1>;
+            input-code = <INPUT_REL_WHEEL>;
+        };
+
         scroll: scroll {
             compatible = "zmk,behavior-sensor-rotate";
             #sensor-binding-cells = <0>;
-            bindings = <&msc MOVE_Y(-250)>, <&msc MOVE_Y(250)>;
+            bindings = <&stepped_scroll (-1)>, <&stepped_scroll 1>;
         };
     };
 
     mou0_mmv_il {
         compatible = "zmk,input-listener";
         device = <&mou0>;
+        input-processors = <&esb_ip>;
+    };
+
+    stepped_scroll_il {
+        compatible = "zmk,input-listener";
+        device = <&stepped_scroll>;
         input-processors = <&esb_ip>;
     };
 
